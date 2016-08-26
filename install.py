@@ -14,6 +14,7 @@ from cct.module import Module
 class Install(Module):
 
     def install(self):
+        self.openshift_scripts()
         self.launch()
 
     def launch(self):
@@ -28,3 +29,17 @@ class Install(Module):
             shutil.move(os.path.join(src,f), dst)
 
         shutil.move(os.path.join(added, "openshift-launch.sh"), os.path.join(os.getenv("JBOSS_HOME"), "bin"))
+
+    def openshift_scripts(self):
+        """
+        re-implementation of os-eap7-openshift
+        """
+
+        added = "/tmp/cct/openshift-eap/os-eap7-openshift/added"
+        jboss_home = os.getenv("JBOSS_HOME")
+
+        with open("{}/bin/standalone.conf".format(jboss_home), "a") as out_fh:
+            with open("{}/standalone.conf".format(added), "r") as in_fh:
+                out_fh.write(in_fh.read())
+
+        shutil.move("{}/standalone-openshift.xml".format(added), "{}/standalone/configuration/".format(jboss_home))
