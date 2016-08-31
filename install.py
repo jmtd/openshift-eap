@@ -28,6 +28,7 @@ class Install(Module):
         for f in os.listdir(src):
             shutil.move(os.path.join(src,f), dst)
 
+        shutil.move(os.path.join(added, "openshift-configure.sh"), os.path.join(os.getenv("JBOSS_HOME"), "bin"))
         shutil.move(os.path.join(added, "openshift-launch.sh"), os.path.join(os.getenv("JBOSS_HOME"), "bin"))
 
     def openshift_scripts(self):
