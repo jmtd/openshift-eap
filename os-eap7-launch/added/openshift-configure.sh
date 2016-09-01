@@ -22,7 +22,6 @@ inject_brokers
 configure_mq
 
 . $JBOSS_HOME/bin/launch/datasource.sh
-inject_datasources
 
 . $JBOSS_HOME/bin/launch/admin.sh
 configure_administration
