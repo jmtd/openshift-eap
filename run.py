@@ -59,10 +59,10 @@ class Run(Module):
         createElement = self.config.createElement
         createTextNode = self.config.createTextNode
 
-        if driver in ["postgres", "mysql"]:
-            if NON_XA_DATASOURCE == True:
+        if driver in ["postgresql", "mysql"]:
+            if NON_XA_DATASOURCE == "true":
                 ds = createElement('datasource')
-                ds.setAttribute('jta', jta)
+                ds.setAttribute('jta', datasource_jta)
                 ds.setAttribute('jndi-name', jndi_name)
                 ds.setAttribute('pool-name', pool_name)
                 ds.setAttribute('use-java-context', "true")
@@ -83,7 +83,11 @@ class Run(Module):
                 ds.setAttribute('use-java-context', "true")
                 ds.setAttribute('enabled', "true")
 
-                for attr, txt in [('serverName', host), ('Port', port), ('DatabaseName', database)]:
+                attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
+                if driver == "postgresql":
+                    attrs[1] = ('PortNumber', port)
+
+                for attr, txt in attrs:
                     p = createElement('xa-datasource-property')
                     p.setAttribute('name', attr)
                     p.appendChild(createTextNode(txt))
@@ -99,7 +103,7 @@ class Run(Module):
                 ds.appendChild(ti)
 
             if min_pool_size or max_pool_size:
-                if NON_XA_DATASOURCE:
+                if NON_XA_DATASOURCE == "true":
                     pool = createElement('pool')
                 else:
                     pool = createElement('xa-pool')
@@ -107,12 +111,12 @@ class Run(Module):
                 if min_pool_size:
                     mps = createElement('min-pool-size')
                     mps.appendChild(createTextNode(min_pool_size))
-                    ds.appendChild(mps)
+                    pool.appendChild(mps)
 
                 if max_pool_size:
                     mps = createElement('max-pool-size')
                     mps.appendChild(createTextNode(max_pool_size))
-                    ds.appendChild(mps)
+                    pool.appendChild(mps)
 
                 ds.appendChild(pool)
 
@@ -193,7 +197,8 @@ class Run(Module):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:ejb3:4.0")
         if ss:
             ss.appendChild(ts)
-            return ts
+            # returning the internal <data-stores> node, caller sometimes append children
+            return ds
         return
 
     def inject_datastore(self, service, jndi_name, database):
