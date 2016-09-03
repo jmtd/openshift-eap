@@ -9,6 +9,7 @@ of the MIT license. See the LICENSE file for details.
 import ssl
 import shutil
 import urllib2
+from jinja2 import Template
 import xml.dom.minidom
 
 import os
@@ -24,6 +25,7 @@ class Run(Module):
         self.run_shell_launch_script()
         self.setup_xml()
         self.inject_datasources()
+        self.inject_datasources_2()
         self.teardown_xml()
 
     def run_shell_launch_script(self):
@@ -516,3 +518,8 @@ class Run(Module):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:transactions:3.0")
         if ss:
             ss.appendChild(js)
+
+    def inject_datasources_2(self):
+        helloworld = Template(self._get_resource("hello.txt"))
+        self.logger.debug("inject_datasources_2: {}".format(helloworld.render()))
+
