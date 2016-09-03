@@ -9,6 +9,7 @@ of the MIT license. See the LICENSE file for details.
 import ssl
 import shutil
 import urllib2
+from jinja2 import Template
 import xml.dom.minidom
 
 import os
@@ -24,6 +25,7 @@ class Run(Module):
         self.run_shell_launch_script()
         self.setup_xml()
         self.inject_datasources()
+        self.inject_datasources_2()
         self.teardown_xml()
 
     def run_shell_launch_script(self):
@@ -61,12 +63,13 @@ class Run(Module):
 
         if driver in ["postgresql", "mysql"]:
             if NON_XA_DATASOURCE == "true":
-                ds = createElement('datasource')
-                ds.setAttribute('jta', datasource_jta)
-                ds.setAttribute('jndi-name', jndi_name)
-                ds.setAttribute('pool-name', pool_name)
-                ds.setAttribute('use-java-context', "true")
-                ds.setAttribute('enabled', "true")
+                ds = self.mkelement('datasource', {
+                    'jta': datasource_jta,
+                    'jndi-name': jndi_name,
+                    'pool-name': pool_name,
+                    'use-java-context': "true",
+                    'enabled': "true",
+                })
 
                 cu = createElement('connection-url')
                 cu.appendChild(createTextNode("jdbc:{}://{}:{}/{}".format(driver,host,port,database)))
@@ -77,11 +80,12 @@ class Run(Module):
                 ds.appendChild(d)
 
             else:
-                ds = createElement('xa-datasource')
-                ds.setAttribute('jndi-name', jndi_name)
-                ds.setAttribute('pool-name', pool_name)
-                ds.setAttribute('use-java-context', "true")
-                ds.setAttribute('enabled', "true")
+                ds = self.mkelement('xa-datasource', {
+                    'jndi-name': jndi_name,
+                    'pool-name': pool_name,
+                    'use-java-context': "true",
+                    'enabled': "true",
+                })
 
                 attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
                 if driver == "postgresql":
@@ -450,15 +454,23 @@ class Run(Module):
 
             return datasource
 
+    def mkelement(self, name, attrs):
+        """Convenience method for creating a node and setting attributes"""
+        node = self.config.createElement(name)
+        for key,val in attrs.items():
+            node.setAttribute(key,val)
+        return node
+
     def generate_tx_datasource(self, service_name, jndi_name, username, password, host, port, database):
         createElement = self.config.createElement
         createTextNode = self.config.createTextNode
 
-        ds = createElement('datasource')
-        ds.setAttribute('jta', "false")
-        ds.setAttribute('jndi-name', "{}ObjectStore".format(jndi_name))
-        ds.setAttribute('pool-name', "{}ObjectStorePool".format(service_name))
-        ds.setAttribute('enabled', "true")
+        ds = self.mkelement('datasource', {
+            'jta': 'false',
+            'jndi-name': "{}ObjectStore".format(jndi_name),
+            'pool-name': "{}ObjectStorePool".format(service_name),
+            'enabled': "true",
+        })
 
         cu = createElement('connection-url')
         cu.appendChild(createTextNode("jdbc:{}://{}:{}/{}".format(driver,host,port,database))) # XXX: confirm argument orders here
@@ -506,3 +518,8 @@ class Run(Module):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:transactions:3.0")
         if ss:
             ss.appendChild(js)
+
+    def inject_datasources_2(self):
+        helloworld = Template(self._get_resource("hello.txt"))
+        self.logger.debug("inject_datasources_2: {}".format(helloworld.render()))
+
