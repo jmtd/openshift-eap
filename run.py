@@ -512,14 +512,18 @@ class Run(Module):
         return ds
 
     def inject_jdbc_store(self, jndi_name):
-        js = self.config.createElement('jdbc-store')
-        js.setAttribute('datasource-jndi-name', "{}ObjectStore".format(jndi_name))
+        t = Template("<jdbc-store datasource-jndi-name=\"{{ jndi_name }}\" />\n")
 
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:transactions:3.0")
         if ss:
-            ss.appendChild(js)
+            self._append_xml_from_string(ss, t.render("{}ObjectStore".format(jndi_name)))
+
+    def _append_xml_from_string(self, node, xmlstr):
+        """helper function to ease importing XML from a string and inserting it
+           into a DOM Node"""
+        newdom = xml.dom.minidom.parseString(xmlstr)
+        node.appendChild(self.config.importNode(newdom.childNodes[0], True))
 
     def inject_datasources_2(self):
         helloworld = Template(self._get_resource("hello.txt"))
         self.logger.debug("inject_datasources_2: {}".format(helloworld.render()))
-
