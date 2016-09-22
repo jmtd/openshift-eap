@@ -175,7 +175,7 @@ class Run(Module):
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
             datastores = self.inject_timer_service("{}_ds".format(pool_name))
             if datastores:
-                datastores.appendChild(self.inject_datastore(pool_name, jndi_name, driver))
+                self.inject_datastore(datastores, pool_name, jndi_name, driver)
 
         if os.getenv("DEFAULT_JOB_REPOSITORY", "") == service_name:
             self.inject_default_job_repository(pool_name)
@@ -205,13 +205,16 @@ class Run(Module):
             return ds
         return
 
-    def inject_datastore(self, service, jndi_name, database):
-        dds = self.config.createElement("database-data-store")
-        dds.setAttribute('name', "{}_ds".format(service))
-        dds.setAttribute('datasource-jndi-name', jndi_name)
-        dds.setAttribute('database', database)
-        dds.setAttribute('partition', '{}_part'.format(service))
-        return dds
+    def inject_datastore(self, parent, service, jndi_name, database):
+        t = Template("""<database-data-store name="{{ service }}_ds"
+            datasource-jndi-name="{{ jndi_name }}"
+            database="{{ database }}"
+            partition="{{ service }}_part" />""")
+        self._append_xml_from_string(parent, t.render(
+            service=service,
+            jndi_name=jndi_name,
+            database=database
+        ))
 
     def inject_default_job_repository(self, name):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:batch-jberet:1.0")

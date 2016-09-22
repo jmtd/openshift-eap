@@ -44,10 +44,19 @@ class TestDataSources(unittest.TestCase):
         service = "testservice"
         jndi = "testjndi"
         database = "testdatabase"
-        dom_object = self.run.inject_datastore(service, jndi, database)
+        root = xml.dom.minidom.parseString("<foo />")
+        parent = root.childNodes[0]
 
-        self.assertIsNotNone(dom_object)
-        self.assertEqual(dom_object.getAttribute("database"), database)
+        self.run.inject_datastore(parent, service, jndi, database)
+
+        self.assertIsNotNone(len(parent.childNodes))
+        child = parent.childNodes[0]
+
+        self.assertIsNotNone(child)
+        self.assertEqual(child.getAttribute("database"), database)
+        self.assertEqual(child.getAttribute("datasource-jndi-name"), jndi)
+        self.assertEqual(child.getAttribute("name"), "{}_ds".format(service))
+        self.assertEqual(child.getAttribute("partition"), "{}_part".format(service))
 
     def test_datasources_all(self):
         """Replicate running the whole datasources at once"""
