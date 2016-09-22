@@ -216,9 +216,8 @@ class Run(Module):
     def inject_default_job_repository(self, name):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:batch-jberet:1.0")
         if ss:
-            djr = self.config.createElement('default-job-repository')
-            djr.setAttribute('name', name)
-            ss.appendChild(djr)
+            t = Template("""<default-job-repository name="{{ name }}" />""")
+            self._append_xml_from_string(ss, t.render(name=name))
 
     def inject_job_repository(self, name):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:batch-jberet:1.0")
