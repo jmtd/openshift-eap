@@ -79,45 +79,7 @@ class Run(Module):
             dstag = 'datasource'
             username = password = 'sa'
 
-        t = Template("""
-        <{{ dstag }}
-          {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
-          jndi-name="{{ jndi_name }}"
-          pool-name="{{ pool_name }}"
-          use-java-context="true"
-          enabled="true">
-          {% if NON_XA_DATASOURCE == "true" %}
-            <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
-          {% else %}
-            {% for attr, txt in attrs %}
-              <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
-            {% endfor %}
-          {% endif %}
-          <driver>{{ driver }}</driver>
-          {%- if tx_isolation -%}
-            <transaction-isolation>
-              {{ tx_isolation }}
-            </transaction-isolation>
-          {%- endif -%}
-          {%- if min_pool_size or max_pool_size -%}
-            <{{ pooltag }}>
-              {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
-              {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
-            </{{ pooltag }}>
-          {%- endif -%}
-          <security>
-              <user-name>{{ username }}</user-name>
-              <password>{{ password }}</password>
-          </security>
-          {%- if driver != "hsql" -%}
-            <validation>
-                <validate-on-match>true</validate-on-match>
-                <valid-connection-checker class-name="{{ checker }}" />
-                <exception-sorter class-name="{{ sorter }}" />
-            </validation>
-          {%- endif -%}
-        </{{ dstag }}>
-        """)
+        t = Template(self._get_resource("templates/datasource.xml.jinja"))
 
         blerg = t.render(
             jndi_name=jndi_name,

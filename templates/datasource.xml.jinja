@@ -1,0 +1,37 @@
+<{{ dstag }}
+  {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
+  jndi-name="{{ jndi_name }}"
+  pool-name="{{ pool_name }}"
+  use-java-context="true"
+  enabled="true">
+  {% if NON_XA_DATASOURCE == "true" %}
+    <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
+  {% else %}
+    {% for attr, txt in attrs %}
+      <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
+    {% endfor %}
+  {% endif %}
+  <driver>{{ driver }}</driver>
+  {%- if tx_isolation -%}
+    <transaction-isolation>{{ tx_isolation }}</transaction-isolation>
+  {%- endif -%}
+  {%- if min_pool_size or max_pool_size -%}
+    <{{ pooltag }}>
+      {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
+      {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
+    </{{ pooltag }}>
+  {%- endif -%}
+  <security>
+      <user-name>{{ username }}</user-name>
+      <password>{{ password }}</password>
+  </security>
+  {%- if driver != "h2" -%}
+    <validation>
+        <validate-on-match>true</validate-on-match>
+        <valid-connection-checker class-name="{{ checker }}" />
+        <exception-sorter class-name="{{ sorter }}" />
+    </validation>
+  {%- else -%}
+    <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>
+  {%- endif -%}
+</{{ dstag }}>
