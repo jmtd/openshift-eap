@@ -184,25 +184,18 @@ class Run(Module):
         return ds
 
     def inject_timer_service(self, arg):
-        ts = self.config.createElement("timer-service")
-        ts.setAttribute('thread-pool-name', 'default')
-        ts.setAttribute('default-data-store', arg)
-
-        ds = self.config.createElement('data-stores')
-        ts.appendChild(ds)
-
-        fds = self.config.createElement('file-data-store')
-        fds.setAttribute('name', 'default-file-store')
-        fds.setAttribute('path', 'timer-service-data')
-        fds.setAttribute('relative-to', 'jboss.server.data.dir')
-
-        ds.appendChild(fds)
+        t = Template("""<timer-service thread-pool-name="default" default-data-store="{{ arg }}"><data-stores
+            ><file-data-store
+                name="default-file-store"
+                path="timer-service-data"
+                relative-to="jboss.server.data.dir"
+           /></data-stores></timer-service>""")
 
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:ejb3:4.0")
         if ss:
-            ss.appendChild(ts)
+            self._append_xml_from_string(ss, t.render(arg=arg))
             # returning the internal <data-stores> node, caller sometimes append children
-            return ds
+            return ss.getElementsByTagName('data-stores')[0]
         return
 
     def inject_datastore(self, parent, service, jndi_name, database):
