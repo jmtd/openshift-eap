@@ -147,39 +147,33 @@ class Run(Module):
             driver = "hsql" # XXX: for later?
 
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
-            datastores = self.inject_timer_service("{}_ds".format(pool_name))
-            if datastores:
-                self.inject_datastore(datastores, pool_name, jndi_name, driver)
+            self.inject_timer_service("{}_ds".format(pool_name), pool_name, jndi_name, driver)
 
         if os.getenv("DEFAULT_JOB_REPOSITORY", "") == service_name:
             self.inject_default_job_repository(pool_name)
             self.inject_job_repository(pool_name)
 
-    def inject_timer_service(self, arg):
+    def inject_timer_service(self, arg, pool_name="", jndi_name="", driver=""):
         t = Template("""<timer-service thread-pool-name="default" default-data-store="{{ arg }}"><data-stores
             ><file-data-store
                 name="default-file-store"
                 path="timer-service-data"
                 relative-to="jboss.server.data.dir"
-           /></data-stores></timer-service>""")
+           />{%- if pool_name != "" -%}
+             <database-data-store name="{{ pool_name }}_ds"
+                 datasource-jndi-name="{{ jndi_name }}"
+                 database="{{ driver }}"
+                 partition="{{ pool_name }}_part" />
+           {%- endif -%}</data-stores></timer-service>""")
 
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:ejb3:4.0")
         if ss:
-            self._append_xml_from_string(ss, t.render(arg=arg))
-            # returning the internal <data-stores> node, caller sometimes append children
-            return ss.getElementsByTagName('data-stores')[0]
-        return
-
-    def inject_datastore(self, parent, service, jndi_name, database):
-        t = Template("""<database-data-store name="{{ service }}_ds"
-            datasource-jndi-name="{{ jndi_name }}"
-            database="{{ database }}"
-            partition="{{ service }}_part" />""")
-        self._append_xml_from_string(parent, t.render(
-            service=service,
-            jndi_name=jndi_name,
-            database=database
-        ))
+            self._append_xml_from_string(ss, t.render(
+                arg=arg,
+                pool_name=pool_name,
+                jndi_name=jndi_name,
+                driver=driver,
+            ))
 
     def inject_default_job_repository(self, name):
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:batch-jberet:1.0")

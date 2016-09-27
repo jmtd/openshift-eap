@@ -40,24 +40,6 @@ class TestDataSources(unittest.TestCase):
         """Ensure the module can read in, parse and write out the config file"""
         self.run.teardown_xml()
 
-    def test_inject_datastore(self):
-        service = "testservice"
-        jndi = "testjndi"
-        database = "testdatabase"
-        root = xml.dom.minidom.parseString("<foo />")
-        parent = root.childNodes[0]
-
-        self.run.inject_datastore(parent, service, jndi, database)
-
-        self.assertIsNotNone(len(parent.childNodes))
-        child = parent.childNodes[0]
-
-        self.assertIsNotNone(child)
-        self.assertEqual(child.getAttribute("database"), database)
-        self.assertEqual(child.getAttribute("datasource-jndi-name"), jndi)
-        self.assertEqual(child.getAttribute("name"), "{}_ds".format(service))
-        self.assertEqual(child.getAttribute("partition"), "{}_part".format(service))
-
     def test_datasources_all(self):
         """Replicate running the whole datasources at once"""
         self.assertEqual(dom_object.getAttribute("datasource-jndi-name"), jndi)
@@ -95,6 +77,22 @@ class TestDataSources(unittest.TestCase):
         self.run.inject_timer_service("default-file-store")
         # XXX: more
 
+    def test_inject_timer_service_datastore(self):
+        default = "testservice_ds"
+        service = "testservice"
+        jndi = "testjndi"
+        database = "testdatabase"
+        self.run.inject_timer_service(default, service, jndi, database)
+
+        ss = self.run._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:ejb3:4.0")
+        child = ss.getElementsByTagName('database-data-store')[0]
+
+        self.assertIsNotNone(child)
+        self.assertEqual(child.getAttribute("database"), database)
+        self.assertEqual(child.getAttribute("datasource-jndi-name"), jndi)
+        self.assertEqual(child.getAttribute("name"), "{}_ds".format(service))
+        self.assertEqual(child.getAttribute("partition"), "{}_part".format(service))
+
     def test_inject_default_job_repository(self):
         self.run.inject_default_job_repository("in-memory")
         # XXX: more
@@ -111,7 +109,6 @@ class TestDataSources(unittest.TestCase):
     def test_datasources_all(self):
         """Replicate running the whole datasources at once"""
         self.run.inject_datasources()
-
 
 if __name__ == '__main__':
     unittest.main()
