@@ -106,44 +106,36 @@ class Run(Module):
                 ti.appendChild(createTextNode(tx_isolation))
                 ds.appendChild(ti)
 
-            if min_pool_size or max_pool_size:
-                if NON_XA_DATASOURCE == "true":
-                    pool = createElement('pool')
-                else:
-                    pool = createElement('xa-pool')
+            if NON_XA_DATASOURCE == "true":
+                pooltag = 'pool'
+            else:
+                pooltag = 'xa-pool'
 
-                if min_pool_size:
-                    mps = createElement('min-pool-size')
-                    mps.appendChild(createTextNode(min_pool_size))
-                    pool.appendChild(mps)
+            t = Template("""
+            {%- if min_pool_size or max_pool_size -%}
+                <{{ pooltag }}>
+                    {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
+                    {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
+                </{{ pooltag }}>
+            {%- endif -%}
+            <security
+                ><user-name>{{ username }}</user-name
+                ><password>{{ password }}</password
+            ></security
+            ><validation><validate-on-match>true</validate-on-match
+                ><valid-connection-checker class-name="{{ checker }}"
+                /><exception-sorter class-name="{{ sorter }}"
+                /></validation>""")
 
-                if max_pool_size:
-                    mps = createElement('max-pool-size')
-                    mps.appendChild(createTextNode(max_pool_size))
-                    pool.appendChild(mps)
-
-                ds.appendChild(pool)
-
-            s = createElement('security')
-            u = createElement('user-name')
-            u.appendChild(createTextNode(username))
-            s.appendChild(u)
-            p = createElement('password')
-            p.appendChild(createTextNode(password))
-            s.appendChild(p)
-            ds.appendChild(s)
-
-            v = createElement('validation')
-            vom = createElement('validate-on-match')
-            vom.appendChild(createTextNode('true'))
-            v.appendChild(vom)
-            vcc = createElement('valid-connection-checker')
-            vcc.setAttribute('class-name', checker)
-            v.appendChild(vcc)
-            es = createElement('exception-sorter')
-            es.setAttribute('class-name', sorter)
-            v.appendChild(es)
-            ds.appendChild(v)
+            self._append_xml_from_string(ds, t.render(
+                pooltag=pooltag,
+                min_pool_size=min_pool_size,
+                max_pool_size=max_pool_size,
+                username=username,
+                password=password,
+                checker=checker,
+                sorter=sorter,
+            ))
 
         else:
             driver = "hsql"
