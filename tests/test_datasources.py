@@ -100,7 +100,8 @@ class TestDataSources(unittest.TestCase):
         # XXX: more
 
     def test_generate_datasource(self):
-        self.run.generate_datasource()
+        mylist = []
+        self.run.generate_datasource(mylist)
         # XXX: more
 
     def test_generate_datasource_mysql(self):

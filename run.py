@@ -131,35 +131,38 @@ class Run(Module):
             datasources.append(newdom.childNodes[0])
 
         else:
-            createElement = self.config.createElement
-            createTextNode = self.config.createTextNode
-
-            driver = "hsql"
+            driver = "h2"
             jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
             pool_name = os.getenv("DB_POOL", "ExampleDS")
             service_name = "ExampleDS"
+            dstag = 'datasource'
+            username = password = 'sa'
 
-            ds = createElement('datasource')
-            ds.setAttribute('jndi-name', jndi_name)
-            ds.setAttribute('pool-name', pool_name)
-            ds.setAttribute('enabled', "true")
-            ds.setAttribute('use-java-context', "true")
-
-            cu = createElement('connection-url')
-            cu.appendChild(createTextNode("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"))
-            ds.appendChild(cu)
-            d = createElement('driver')
-            d.appendChild(createTextNode('h2'))
-            ds.appendChild(d)
-            s = createElement('security')
-            u = createElement('user-name')
-            u.appendChild(createTextNode('sa'))
-            s.appendChild(u)
-            p = createElement('password')
-            p.appendChild(createTextNode('sa'))
-            s.appendChild(p)
-            ds.appendChild(s)
-            datasources.append(ds)
+            t = Template("""
+            <{{ dstag }}
+              jndi-name="{{ jndi_name }}"
+              pool-name="{{ pool_name }}"
+              use-java-context="true"
+              enabled="true">
+              <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>
+              <driver>{{ driver }}</driver>
+              <security>
+                <user-name>{{ username }}</user-name>
+                <password>{{ password }}</password>
+              </security>
+            </{{ dstag }}>
+            """)
+            blerg = t.render(
+                dstag=dstag,
+                username=username,
+                password=password,
+                jndi_name=jndi_name,
+                pool_name=pool_name,
+            )
+            newdom = xml.dom.minidom.parseString(blerg)
+            datasources.append(newdom.childNodes[0])
+            if driver == "h2":
+                driver = "hsql" # XXX: for later?
 
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
             datastores = self.inject_timer_service("{}_ds".format(pool_name))
