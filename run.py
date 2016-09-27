@@ -58,6 +58,9 @@ class Run(Module):
         return
 
     def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
+
+        attrs = []
+        pooltag = ''
         if driver in ["postgresql", "mysql"]:
             if NON_XA_DATASOURCE == "true":
                 dstag = 'datasource'
@@ -68,68 +71,6 @@ class Run(Module):
                 attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
                 if driver == "postgresql":
                     attrs[1] = ('PortNumber', port)
-
-            t = Template("""
-            <{{ dstag }}
-              {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
-              jndi-name="{{ jndi_name }}"
-              pool-name="{{ pool_name }}"
-              use-java-context="true"
-              enabled="true">
-              {% if NON_XA_DATASOURCE == "true" %}
-                <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
-              {% else %}
-                {% for attr, txt in attrs %}
-                  <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
-                {% endfor %}
-              {% endif %}
-              <driver>{{ driver }}</driver>
-              {%- if tx_isolation -%}
-                <transaction-isolation>
-                  {{ tx_isolation }}
-                </transaction-isolation>
-              {%- endif -%}
-              {%- if min_pool_size or max_pool_size -%}
-                <{{ pooltag }}>
-                  {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
-                  {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
-                </{{ pooltag }}>
-              {%- endif -%}
-              <security>
-                  <user-name>{{ username }}</user-name>
-                  <password>{{ password }}</password>
-              </security>
-              <validation>
-                  <validate-on-match>true</validate-on-match>
-                  <valid-connection-checker class-name="{{ checker }}" />
-                  <exception-sorter class-name="{{ sorter }}" />
-              </validation>
-            </{{ dstag }}>
-            """)
-
-            blerg = t.render(
-                jndi_name=jndi_name,
-                datasource_jta=datasource_jta,
-                pool_name=pool_name,
-                pooltag=pooltag,
-                NON_XA_DATASOURCE=NON_XA_DATASOURCE,
-                min_pool_size=min_pool_size,
-                dstag=dstag,
-                driver=driver,
-                host=host,
-                port=port,
-                database=database,
-                max_pool_size=max_pool_size,
-                username=username,
-                password=password,
-                checker=checker,
-                sorter=sorter,
-                tx_isolation=tx_isolation,
-            )
-            self.logger.error(blerg)
-            newdom = xml.dom.minidom.parseString(blerg)
-            datasources.append(newdom.childNodes[0])
-
         else:
             driver = "h2"
             jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
@@ -138,31 +79,71 @@ class Run(Module):
             dstag = 'datasource'
             username = password = 'sa'
 
-            t = Template("""
-            <{{ dstag }}
-              jndi-name="{{ jndi_name }}"
-              pool-name="{{ pool_name }}"
-              use-java-context="true"
-              enabled="true">
-              <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</connection-url>
-              <driver>{{ driver }}</driver>
-              <security>
-                <user-name>{{ username }}</user-name>
-                <password>{{ password }}</password>
-              </security>
-            </{{ dstag }}>
-            """)
-            blerg = t.render(
-                dstag=dstag,
-                username=username,
-                password=password,
-                jndi_name=jndi_name,
-                pool_name=pool_name,
-            )
-            newdom = xml.dom.minidom.parseString(blerg)
-            datasources.append(newdom.childNodes[0])
-            if driver == "h2":
-                driver = "hsql" # XXX: for later?
+        t = Template("""
+        <{{ dstag }}
+          {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
+          jndi-name="{{ jndi_name }}"
+          pool-name="{{ pool_name }}"
+          use-java-context="true"
+          enabled="true">
+          {% if NON_XA_DATASOURCE == "true" %}
+            <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
+          {% else %}
+            {% for attr, txt in attrs %}
+              <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
+            {% endfor %}
+          {% endif %}
+          <driver>{{ driver }}</driver>
+          {%- if tx_isolation -%}
+            <transaction-isolation>
+              {{ tx_isolation }}
+            </transaction-isolation>
+          {%- endif -%}
+          {%- if min_pool_size or max_pool_size -%}
+            <{{ pooltag }}>
+              {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
+              {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
+            </{{ pooltag }}>
+          {%- endif -%}
+          <security>
+              <user-name>{{ username }}</user-name>
+              <password>{{ password }}</password>
+          </security>
+          {%- if driver != "hsql" -%}
+            <validation>
+                <validate-on-match>true</validate-on-match>
+                <valid-connection-checker class-name="{{ checker }}" />
+                <exception-sorter class-name="{{ sorter }}" />
+            </validation>
+          {%- endif -%}
+        </{{ dstag }}>
+        """)
+
+        blerg = t.render(
+            jndi_name=jndi_name,
+            datasource_jta=datasource_jta,
+            pool_name=pool_name,
+            pooltag=pooltag,
+            NON_XA_DATASOURCE=NON_XA_DATASOURCE,
+            min_pool_size=min_pool_size,
+            dstag=dstag,
+            driver=driver,
+            host=host,
+            port=port,
+            database=database,
+            max_pool_size=max_pool_size,
+            username=username,
+            password=password,
+            checker=checker,
+            sorter=sorter,
+            tx_isolation=tx_isolation,
+        )
+        self.logger.error(blerg)
+        newdom = xml.dom.minidom.parseString(blerg)
+        datasources.append(newdom.childNodes[0])
+
+        if driver == "h2":
+            driver = "hsql" # XXX: for later?
 
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
             datastores = self.inject_timer_service("{}_ds".format(pool_name))
