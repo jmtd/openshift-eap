@@ -57,120 +57,94 @@ class Run(Module):
         self.logger.error("couldn't find correct {} element".format(tag))
         return
 
-    def generate_datasource(self, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
-        createElement = self.config.createElement
-        createTextNode = self.config.createTextNode
+    def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
 
+        attrs = []
+        pooltag = ''
         if driver in ["postgresql", "mysql"]:
             if NON_XA_DATASOURCE == "true":
-                ds = self.mkelement('datasource', {
-                    'jta': datasource_jta,
-                    'jndi-name': jndi_name,
-                    'pool-name': pool_name,
-                    'use-java-context': "true",
-                    'enabled': "true",
-                })
-
-                cu = createElement('connection-url')
-                cu.appendChild(createTextNode("jdbc:{}://{}:{}/{}".format(driver,host,port,database)))
-                ds.appendChild(cu)
-
-                d = createElement('driver')
-                d.appendChild(createTextNode(driver))
-                ds.appendChild(d)
-
+                dstag = 'datasource'
+                pooltag = 'pool'
             else:
-                ds = self.mkelement('xa-datasource', {
-                    'jndi-name': jndi_name,
-                    'pool-name': pool_name,
-                    'use-java-context': "true",
-                    'enabled': "true",
-                })
-
+                dstag = 'xa-datasource'
+                pooltag = 'xa-pool'
                 attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
                 if driver == "postgresql":
                     attrs[1] = ('PortNumber', port)
-
-                for attr, txt in attrs:
-                    p = createElement('xa-datasource-property')
-                    p.setAttribute('name', attr)
-                    p.appendChild(createTextNode(txt))
-                    ds.appendChild(p)
-
-                d = createElement('driver')
-                d.appendChild(createTextNode(driver))
-                ds.appendChild(d)
-
-            if tx_isolation:
-                ti = createElement('transaction-isolation')
-                ti.appendChild(createTextNode(tx_isolation))
-                ds.appendChild(ti)
-
-            if min_pool_size or max_pool_size:
-                if NON_XA_DATASOURCE == "true":
-                    pool = createElement('pool')
-                else:
-                    pool = createElement('xa-pool')
-
-                if min_pool_size:
-                    mps = createElement('min-pool-size')
-                    mps.appendChild(createTextNode(min_pool_size))
-                    pool.appendChild(mps)
-
-                if max_pool_size:
-                    mps = createElement('max-pool-size')
-                    mps.appendChild(createTextNode(max_pool_size))
-                    pool.appendChild(mps)
-
-                ds.appendChild(pool)
-
-            s = createElement('security')
-            u = createElement('user-name')
-            u.appendChild(createTextNode(username))
-            s.appendChild(u)
-            p = createElement('password')
-            p.appendChild(createTextNode(password))
-            s.appendChild(p)
-            ds.appendChild(s)
-
-            v = createElement('validation')
-            vom = createElement('validate-on-match')
-            vom.appendChild(createTextNode('true'))
-            v.appendChild(vom)
-            vcc = createElement('valid-connection-checker')
-            vcc.setAttribute('class-name', checker)
-            v.appendChild(vcc)
-            es = createElement('exception-sorter')
-            es.setAttribute('class-name', sorter)
-            v.appendChild(es)
-            ds.appendChild(v)
-
         else:
-            driver = "hsql"
+            driver = "h2"
             jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
             pool_name = os.getenv("DB_POOL", "ExampleDS")
             service_name = "ExampleDS"
+            dstag = 'datasource'
+            username = password = 'sa'
 
-            ds = createElement('datasource')
-            ds.setAttribute('jndi-name', jndi_name)
-            ds.setAttribute('pool-name', pool_name)
-            ds.setAttribute('enabled', "true")
-            ds.setAttribute('use-java-context', "true")
+        t = Template("""
+        <{{ dstag }}
+          {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
+          jndi-name="{{ jndi_name }}"
+          pool-name="{{ pool_name }}"
+          use-java-context="true"
+          enabled="true">
+          {% if NON_XA_DATASOURCE == "true" %}
+            <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
+          {% else %}
+            {% for attr, txt in attrs %}
+              <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
+            {% endfor %}
+          {% endif %}
+          <driver>{{ driver }}</driver>
+          {%- if tx_isolation -%}
+            <transaction-isolation>
+              {{ tx_isolation }}
+            </transaction-isolation>
+          {%- endif -%}
+          {%- if min_pool_size or max_pool_size -%}
+            <{{ pooltag }}>
+              {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
+              {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
+            </{{ pooltag }}>
+          {%- endif -%}
+          <security>
+              <user-name>{{ username }}</user-name>
+              <password>{{ password }}</password>
+          </security>
+          {%- if driver != "hsql" -%}
+            <validation>
+                <validate-on-match>true</validate-on-match>
+                <valid-connection-checker class-name="{{ checker }}" />
+                <exception-sorter class-name="{{ sorter }}" />
+            </validation>
+          {%- endif -%}
+        </{{ dstag }}>
+        """)
 
-            cu = createElement('connection-url')
-            cu.appendChild(createTextNode("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"))
-            ds.appendChild(cu)
-            d = createElement('driver')
-            d.appendChild(createTextNode('h2'))
-            ds.appendChild(d)
-            s = createElement('security')
-            u = createElement('user-name')
-            u.appendChild(createTextNode('sa'))
-            s.appendChild(u)
-            p = createElement('password')
-            p.appendChild(createTextNode('sa'))
-            s.appendChild(p)
-            ds.appendChild(s)
+        blerg = t.render(
+            jndi_name=jndi_name,
+            attrs=attrs,
+            datasource_jta=datasource_jta,
+            pool_name=pool_name,
+            pooltag=pooltag,
+            NON_XA_DATASOURCE=NON_XA_DATASOURCE,
+            min_pool_size=min_pool_size,
+            dstag=dstag,
+            driver=driver,
+            host=host,
+            port=port,
+            database=database,
+            max_pool_size=max_pool_size,
+            username=username,
+            password=password,
+            checker=checker,
+            sorter=sorter,
+            tx_isolation=tx_isolation,
+        )
+        self.logger.error(blerg)
+        newdom = xml.dom.minidom.parseString(blerg)
+        datasources.append(newdom.childNodes[0])
+
+        if driver == "h2":
+            driver = "hsql" # XXX: for later?
 
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
             datastores = self.inject_timer_service("{}_ds".format(pool_name))
@@ -180,8 +154,6 @@ class Run(Module):
         if os.getenv("DEFAULT_JOB_REPOSITORY", "") == service_name:
             self.inject_default_job_repository(pool_name)
             self.inject_job_repository(pool_name)
-
-        return ds
 
     def inject_timer_service(self, arg):
         t = Template("""<timer-service thread-pool-name="default" default-data-store="{{ arg }}"><data-stores
@@ -236,7 +208,7 @@ class Run(Module):
         datasources = []
 
         if len(db_backends) == 0:
-            datasources.append(self.generate_datasource()) # XXX: arguments?
+            self.generate_datasource(datasources)
             if not defaultDatasourceJndi:
                     defaultDatasourceJndi="java:jboss/datasources/ExampleDS"
 
@@ -337,7 +309,8 @@ class Run(Module):
                     self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
                     continue
 
-                datasources.append(self.generate_datasource(
+                self.generate_datasource(
+                    datasources=datasources,
                     pool_name="{}-{}".format(service.lower(), prefix),
                     jndi_name=jndi_name,
                     username=username,
@@ -355,7 +328,7 @@ class Run(Module):
                     tx_isolation=tx_isolation,
                     min_pool_size=min_pool_size,
                     max_pool_size=max_pool_size
-                ))
+                )
 
                 if not defaultDatasourceJndi:
                     defaultDatasourceJndi=jndi_name

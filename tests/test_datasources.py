@@ -100,8 +100,13 @@ class TestDataSources(unittest.TestCase):
         # XXX: more
 
     def test_generate_datasource(self):
-        something = self.run.generate_datasource()
+        mylist = []
+        self.run.generate_datasource(mylist)
         # XXX: more
+
+    def test_generate_datasource_mysql(self):
+        mylist = []
+        self.run.generate_datasource(mylist, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="mysql", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size="")
 
     def test_datasources_all(self):
         """Replicate running the whole datasources at once"""
