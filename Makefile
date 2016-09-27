@@ -1,3 +1,6 @@
+blerg:
+	tox -e py27 -- tests/test_datasources.py::TestDataSources::test_generate_datasource_mysql
+
 test: prepare
 	tox -- tests
 

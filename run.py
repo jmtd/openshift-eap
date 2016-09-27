@@ -57,87 +57,83 @@ class Run(Module):
         self.logger.error("couldn't find correct {} element".format(tag))
         return
 
-    def generate_datasource(self, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
-        createElement = self.config.createElement
-        createTextNode = self.config.createTextNode
-
+    def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
         if driver in ["postgresql", "mysql"]:
             if NON_XA_DATASOURCE == "true":
-                ds = self.mkelement('datasource', {
-                    'jta': datasource_jta,
-                    'jndi-name': jndi_name,
-                    'pool-name': pool_name,
-                    'use-java-context': "true",
-                    'enabled': "true",
-                })
-
-                cu = createElement('connection-url')
-                cu.appendChild(createTextNode("jdbc:{}://{}:{}/{}".format(driver,host,port,database)))
-                ds.appendChild(cu)
-
-                d = createElement('driver')
-                d.appendChild(createTextNode(driver))
-                ds.appendChild(d)
-
+                dstag = 'datasource'
+                pooltag = 'pool'
             else:
-                ds = self.mkelement('xa-datasource', {
-                    'jndi-name': jndi_name,
-                    'pool-name': pool_name,
-                    'use-java-context': "true",
-                    'enabled': "true",
-                })
-
+                dstag = 'xa-datasource'
+                pooltag = 'xa-pool'
                 attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
                 if driver == "postgresql":
                     attrs[1] = ('PortNumber', port)
 
-                for attr, txt in attrs:
-                    p = createElement('xa-datasource-property')
-                    p.setAttribute('name', attr)
-                    p.appendChild(createTextNode(txt))
-                    ds.appendChild(p)
-
-                d = createElement('driver')
-                d.appendChild(createTextNode(driver))
-                ds.appendChild(d)
-
-            if tx_isolation:
-                ti = createElement('transaction-isolation')
-                ti.appendChild(createTextNode(tx_isolation))
-                ds.appendChild(ti)
-
-            if NON_XA_DATASOURCE == "true":
-                pooltag = 'pool'
-            else:
-                pooltag = 'xa-pool'
-
             t = Template("""
-            {%- if min_pool_size or max_pool_size -%}
+            <{{ dstag }}
+              {% if NON_XA_DATASOURCE == "true" %} jta="{{ datasource_jta }}" {% endif %}
+              jndi-name="{{ jndi_name }}"
+              pool-name="{{ pool_name }}"
+              use-java-context="true"
+              enabled="true">
+              {% if NON_XA_DATASOURCE == "true" %}
+                <connection-url>jdbc:{{ driver }}://{{ host }}:{{ port }}/{{ database }}</connection-url>
+              {% else %}
+                {% for attr, txt in attrs %}
+                  <xa-datasource-property name="{{ attr }}">{{ txt }}</xa-datasource-property>
+                {% endfor %}
+              {% endif %}
+              <driver>{{ driver }}</driver>
+              {%- if tx_isolation -%}
+                <transaction-isolation>
+                  {{ tx_isolation }}
+                </transaction-isolation>
+              {%- endif -%}
+              {%- if min_pool_size or max_pool_size -%}
                 <{{ pooltag }}>
-                    {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
-                    {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
+                  {%- if min_pool_size %}<min-pool-size>{{ min_pool_size }}</min-pool-size>{% endif -%}
+                  {%- if max_pool_size %}<max-pool-size>{{ max_pool_size }}</max-pool-size>{% endif -%}
                 </{{ pooltag }}>
-            {%- endif -%}
-            <security
-                ><user-name>{{ username }}</user-name
-                ><password>{{ password }}</password
-            ></security
-            ><validation><validate-on-match>true</validate-on-match
-                ><valid-connection-checker class-name="{{ checker }}"
-                /><exception-sorter class-name="{{ sorter }}"
-                /></validation>""")
+              {%- endif -%}
+              <security>
+                  <user-name>{{ username }}</user-name>
+                  <password>{{ password }}</password>
+              </security>
+              <validation>
+                  <validate-on-match>true</validate-on-match>
+                  <valid-connection-checker class-name="{{ checker }}" />
+                  <exception-sorter class-name="{{ sorter }}" />
+              </validation>
+            </{{ dstag }}>
+            """)
 
-            self._append_xml_from_string(ds, t.render(
+            blerg = t.render(
+                jndi_name=jndi_name,
+                datasource_jta=datasource_jta,
+                pool_name=pool_name,
                 pooltag=pooltag,
+                NON_XA_DATASOURCE=NON_XA_DATASOURCE,
                 min_pool_size=min_pool_size,
+                dstag=dstag,
+                driver=driver,
+                host=host,
+                port=port,
+                database=database,
                 max_pool_size=max_pool_size,
                 username=username,
                 password=password,
                 checker=checker,
                 sorter=sorter,
-            ))
+                tx_isolation=tx_isolation,
+            )
+            self.logger.error(blerg)
+            newdom = xml.dom.minidom.parseString(blerg)
+            datasources.append(newdom.childNodes[0])
 
         else:
+            createElement = self.config.createElement
+            createTextNode = self.config.createTextNode
+
             driver = "hsql"
             jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
             pool_name = os.getenv("DB_POOL", "ExampleDS")
@@ -163,6 +159,7 @@ class Run(Module):
             p.appendChild(createTextNode('sa'))
             s.appendChild(p)
             ds.appendChild(s)
+            datasources.append(ds)
 
         if os.getenv("TIMER_SERVICE_DATA_STORE", "") == service_name:
             datastores = self.inject_timer_service("{}_ds".format(pool_name))
@@ -172,8 +169,6 @@ class Run(Module):
         if os.getenv("DEFAULT_JOB_REPOSITORY", "") == service_name:
             self.inject_default_job_repository(pool_name)
             self.inject_job_repository(pool_name)
-
-        return ds
 
     def inject_timer_service(self, arg):
         t = Template("""<timer-service thread-pool-name="default" default-data-store="{{ arg }}"><data-stores
@@ -228,7 +223,7 @@ class Run(Module):
         datasources = []
 
         if len(db_backends) == 0:
-            datasources.append(self.generate_datasource()) # XXX: arguments?
+            self.generate_datasource(datasources)
             if not defaultDatasourceJndi:
                     defaultDatasourceJndi="java:jboss/datasources/ExampleDS"
 
@@ -329,7 +324,8 @@ class Run(Module):
                     self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
                     continue
 
-                datasources.append(self.generate_datasource(
+                self.generate_datasource(
+                    datasources=datasources,
                     pool_name="{}-{}".format(service.lower(), prefix),
                     jndi_name=jndi_name,
                     username=username,
@@ -347,7 +343,7 @@ class Run(Module):
                     tx_isolation=tx_isolation,
                     min_pool_size=min_pool_size,
                     max_pool_size=max_pool_size
-                ))
+                )
 
                 if not defaultDatasourceJndi:
                     defaultDatasourceJndi=jndi_name
