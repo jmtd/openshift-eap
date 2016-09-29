@@ -58,6 +58,8 @@ class Run(Module):
         return
 
     def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
+        """Re-implementation of generate_datasources from os-eap7-launch/added/launch/datasources.sh
+        corresponding to jboss-dockerfiles around f51474e044f8508412bb18f594099fb13c0d69f2"""
 
         attrs = []
         pooltag = ''
