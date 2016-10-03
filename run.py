@@ -57,12 +57,14 @@ class Run(Module):
         self.logger.error("couldn't find correct {} element".format(tag))
         return
 
-    def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size=""):
+    def generate_datasource(self, datasources, pool_name="", jndi_name="", username="", password="", host="", port="", database="", checker="", sorter="", driver="", service_name="", orig_service_name="", datasource_jta="", NON_XA_DATASOURCE="", tx_isolation="", min_pool_size="", max_pool_size="", validate="", protocol="", url=""):
         """Re-implementation of generate_datasources from os-eap7-launch/added/launch/datasources.sh
         corresponding to jboss-dockerfiles around f51474e044f8508412bb18f594099fb13c0d69f2"""
 
         attrs = []
         pooltag = ''
+        connection_url = ''
+
         if driver in ["postgresql", "mysql"]:
             if NON_XA_DATASOURCE == "true":
                 dstag = 'datasource'
@@ -70,16 +72,37 @@ class Run(Module):
             else:
                 dstag = 'xa-datasource'
                 pooltag = 'xa-pool'
-                attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
-                if driver == "postgresql":
-                    attrs[1] = ('PortNumber', port)
+
+                if url:
+                    attrs = [('URL', url)]
+                else:
+                    attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
+
+                    if driver == "postgresql":
+                        attrs[1] = ('PortNumber', port)
         else:
-            driver = "h2"
-            jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
-            pool_name = os.getenv("DB_POOL", "ExampleDS")
-            service_name = "ExampleDS"
-            dstag = 'datasource'
-            username = password = 'sa'
+            if driver:
+                if NON_XA_DATASOURCE == "true":
+                    if driver == "h2":
+                         connection_url="{}:{}:{}".format(protocol, host, database)
+                         h2_import=os.getenv("{}_IMPORT_SQL".format(prefix), "")
+                         if h2_import:
+                             connection_url += ";INIT=RUNSCRIPT FROM '{}'\;".format(h2_import)
+                    else:
+                        connection_url = url
+                else:
+                    if url:
+                        attrs = [('URL', url)]
+                    else:
+                        attrs = [('ServerName', host), ('Port', port), ('DatabaseName', database)]
+
+            else:
+                driver = "h2"
+                jndi_name = os.getenv("DB_JNDI", "java:jboss/datasources/ExampleDS")
+                pool_name = os.getenv("DB_POOL", "ExampleDS")
+                service_name = "ExampleDS"
+                dstag = 'datasource'
+                username = password = 'sa'
 
         t = Template(self._get_resource("templates/datasource.xml.jinja"))
 
@@ -99,9 +122,11 @@ class Run(Module):
             max_pool_size=max_pool_size,
             username=username,
             password=password,
+            connection_url=connection_url,
             checker=checker,
             sorter=sorter,
             tx_isolation=tx_isolation,
+            validate=validate,
         )
         self.logger.error(blerg)
         newdom = xml.dom.minidom.parseString(blerg)

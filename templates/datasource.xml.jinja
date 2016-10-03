@@ -25,7 +25,7 @@
       <user-name>{{ username }}</user-name>
       <password>{{ password }}</password>
   </security>
-  {%- if driver != "h2" -%}
+  {%- if driver != "h2" and validate -%}
     <validation>
         <validate-on-match>true</validate-on-match>
         <valid-connection-checker class-name="{{ checker }}" />
