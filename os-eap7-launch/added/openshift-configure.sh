@@ -17,6 +17,9 @@ SECDOMAIN_ROLES_PROPERTIES=${SECDOMAIN_ROLES_PROPERTIES:-${EAP_SECDOMAIN_ROLES_P
 SECDOMAIN_NAME=${SECDOMAIN_NAME:-$EAP_SECDOMAIN_NAME}
 SECDOMAIN_PASSWORD_STACKING=${SECDOMAIN_PASSWORD_STACKING:-$EAP_SECDOMAIN_PASSWORD_STACKING}
 
+. $JBOSS_HOME/bin/launch/passwd.sh
+configure_passwd
+
 . $JBOSS_HOME/bin/launch/messaging.sh
 inject_brokers
 configure_mq
@@ -29,6 +32,8 @@ configure_administration
 . $JBOSS_HOME/bin/launch/ha.sh
 check_view_pods_permission
 configure_ha
+
+. $JBOSS_HOME/bin/launch/jgroups.sh
 configure_jgroups_encryption
 
 . $JBOSS_HOME/bin/launch/https.sh
