@@ -25,7 +25,6 @@ class Run(Module):
         self.run_shell_launch_script()
         self.setup_xml()
         self.inject_datasources()
-        self.inject_datasources_2()
         self.teardown_xml()
 
     def run_shell_launch_script(self):
@@ -106,7 +105,7 @@ class Run(Module):
 
         t = Template(self._get_resource("templates/datasource.xml.jinja"))
 
-        blerg = t.render(
+        newdom = xml.dom.minidom.parseString(t.render(
             jndi_name=jndi_name,
             attrs=attrs,
             datasource_jta=datasource_jta,
@@ -127,9 +126,7 @@ class Run(Module):
             sorter=sorter,
             tx_isolation=tx_isolation,
             validate=validate,
-        )
-        self.logger.error(blerg)
-        newdom = xml.dom.minidom.parseString(blerg)
+        ))
         datasources.append(newdom.childNodes[0])
 
         if driver == "h2":
@@ -469,7 +466,3 @@ class Run(Module):
            into a DOM Node"""
         newdom = xml.dom.minidom.parseString(xmlstr)
         node.appendChild(self.config.importNode(newdom.childNodes[0], True))
-
-    def inject_datasources_2(self):
-        helloworld = Template(self._get_resource("hello.txt"))
-        self.logger.debug("inject_datasources_2: {}".format(helloworld.render()))
