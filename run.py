@@ -209,106 +209,7 @@ class Run(Module):
                         self.logger.error( "WARNING! The datasource for {} service WILL NOT be configured.".format(prefix))
                         continue
 
-                host = os.getenv("{}_SERVICE_HOST".format(service))
-                port = os.getenv("{}_SERVICE_PORT".format(service))
-
-                if not (host or port):
-                    self.logger.error( "There is a problem with your service configuration!")
-                    self.logger.error( "You provided following database mapping (via DB_SERVICE_PREFIX_MAPPING environment variable): {db_backend}. To configure datasources we expect {service}_SERVICE_HOST and {service}_SERVICE_PORT to be set.".format(db_backend=db_backend,service=service))
-                    self.logger.error("")
-                    self.logger.error( "Current values:")
-                    self.logger.error("")
-                    self.logger.error( "{}_SERVICE_HOST: {}".format(service,host))
-                    self.logger.error( "{}_SERVICE_PORT: {}".format(service,port))
-                    self.logger.error("")
-                    self.logger.error( "Please make sure you provided correct service name and prefix in the mapping. Additionally please check that you do not set portalIP to None in the {} service. Headless services are not supported at this time.".format(service_name))
-                    self.logger.error("")
-                    self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(),prefix))
-                    continue
-
-                # Custom JNDI environment variable name format: [NAME]_[DATABASE_TYPE]_JNDI
-                jndi_name = os.getenv("{}_JNDI".format(prefix), "java:jboss/datasources/{}".format(service.lower()))
-
-                # Database username environment variable name format: [NAME]_[DATABASE_TYPE]_USERNAME
-                username = os.getenv("{}_USERNAME".format(prefix))
-
-                # Database password environment variable name format: [NAME]_[DATABASE_TYPE]_PASSWORD
-                password = os.getenv("{}_PASSWORD".format(prefix))
-
-                # Database name environment variable name format: [NAME]_[DATABASE_TYPE]_DATABASE
-                database = os.getenv("{}_DATABASE".format(prefix))
-
-                if not all([jndi_name, username, password, database]):
-                    self.logger.error( "Ooops, there is a problem with the {} datasource!".format(db.lower()))
-                    self.logger.error( "In order to configure {db} datasource for {prefix} service you need to provide following environment variables: {prefix}_USERNAME, {prefix}_PASSWORD, {prefix}_DATABASE.".format(db=db.lower(),prefix=prefix))
-                    self.logger.error("")
-                    self.logger.error( "Current values:")
-                    self.logger.error("")
-                    self.logger.error( "{}_USERNAME: {}".format(prefix,username))
-                    self.logger.error( "{}_PASSWORD: {}".format(prefix,password))
-                    self.logger.error( "{}_DATABASE: {}".format(prefix,database))
-                    self.logger.error("")
-                    self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
-                    continue
-
-                # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
-                tx_isolation = os.getenv("{}_TX_ISOLATION".format(prefix))
-
-                # min pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MIN_POOL_SIZE
-                min_pool_size = os.getenv("{}_MIN_POOL_SIZE".format(prefix))
-
-                # max pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MAX_POOL_SIZE
-                max_pool_size = os.getenv("{}_MAX_POOL_SIZE".format(prefix))
-
-                # jta environment variable name format: [NAME]_[DATABASE_TYPE]_JTA
-                jta = os.getenv("{}_JTA".format(prefix), "true")
-
-                # $NON_XA_DATASOURCE: [NAME]_[DATABASE_TYPE]_NONXA (DB_NONXA)
-                NON_XA_DATASOURCE = os.getenv("{}_NONXA".format(prefix), "false")
-
-                if db == "MYSQL":
-                    driver="mysql"
-                    checker="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"
-                    sorter="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"
-
-                elif db == "POSTGRESQL":
-                    driver="postgresql"
-                    checker="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker"
-                    sorter="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter"
-
-                elif db == "MONGODB":
-                    continue
-
-                else:
-                    self.logger.error( "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!")
-                    self.logger.error( "You provided the following database mapping (via DB_SERVICE_PREFIX_MAPPING): {}.".format(db_backend))
-                    self.logger.error( "The mapping contains the following database type: {}, which is not supported. Currently, only MYSQL and POSTGRESQL are supported.".format(db))
-                    self.logger.error("")
-                    self.logger.error( "Please make sure you provide the correct database type in the mapping.")
-                    self.logger.error("")
-                    self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
-                    continue
-
-                self.generate_datasource(
-                    datasources=datasources,
-                    pool_name="{}-{}".format(service.lower(), prefix),
-                    jndi_name=jndi_name,
-                    username=username,
-                    password=password,
-                    host=host,
-                    port=port,
-                    database=database,
-                    checker=checker,
-                    sorter=sorter,
-                    driver=driver,
-                    service_name=service_name,
-                    # orig_service_name elided
-                    datasource_jta=jta,
-                    NON_XA_DATASOURCE=NON_XA_DATASOURCE,
-                    tx_isolation=tx_isolation,
-                    min_pool_size=min_pool_size,
-                    max_pool_size=max_pool_size
-                )
+                self.inject_datasource(datasources, prefix, service, db, service_name)
 
                 if not defaultDatasourceJndi:
                     defaultDatasourceJndi=jndi_name
@@ -323,6 +224,108 @@ class Run(Module):
         for source in datasources:
             if source:
                 ds.appendChild(source)
+
+    def inject_datasource(self, datasources, prefix, service, db):
+        host = os.getenv("{}_SERVICE_HOST".format(service))
+        port = os.getenv("{}_SERVICE_PORT".format(service))
+
+        if not (host or port):
+            self.logger.error( "There is a problem with your service configuration!")
+            self.logger.error( "You provided following database mapping (via DB_SERVICE_PREFIX_MAPPING environment variable): {db_backend}. To configure datasources we expect {service}_SERVICE_HOST and {service}_SERVICE_PORT to be set.".format(db_backend=db_backend,service=service))
+            self.logger.error("")
+            self.logger.error( "Current values:")
+            self.logger.error("")
+            self.logger.error( "{}_SERVICE_HOST: {}".format(service,host))
+            self.logger.error( "{}_SERVICE_PORT: {}".format(service,port))
+            self.logger.error("")
+            self.logger.error( "Please make sure you provided correct service name and prefix in the mapping. Additionally please check that you do not set portalIP to None in the {} service. Headless services are not supported at this time.".format(service_name))
+            self.logger.error("")
+            self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(),prefix))
+            continue
+
+        # Custom JNDI environment variable name format: [NAME]_[DATABASE_TYPE]_JNDI
+        jndi_name = os.getenv("{}_JNDI".format(prefix), "java:jboss/datasources/{}".format(service.lower()))
+
+        # Database username environment variable name format: [NAME]_[DATABASE_TYPE]_USERNAME
+        username = os.getenv("{}_USERNAME".format(prefix))
+
+        # Database password environment variable name format: [NAME]_[DATABASE_TYPE]_PASSWORD
+        password = os.getenv("{}_PASSWORD".format(prefix))
+
+        # Database name environment variable name format: [NAME]_[DATABASE_TYPE]_DATABASE
+        database = os.getenv("{}_DATABASE".format(prefix))
+
+        if not all([jndi_name, username, password, database]):
+            self.logger.error( "Ooops, there is a problem with the {} datasource!".format(db.lower()))
+            self.logger.error( "In order to configure {db} datasource for {prefix} service you need to provide following environment variables: {prefix}_USERNAME, {prefix}_PASSWORD, {prefix}_DATABASE.".format(db=db.lower(),prefix=prefix))
+            self.logger.error("")
+            self.logger.error( "Current values:")
+            self.logger.error("")
+            self.logger.error( "{}_USERNAME: {}".format(prefix,username))
+            self.logger.error( "{}_PASSWORD: {}".format(prefix,password))
+            self.logger.error( "{}_DATABASE: {}".format(prefix,database))
+            self.logger.error("")
+            self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
+            continue
+
+        # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
+        tx_isolation = os.getenv("{}_TX_ISOLATION".format(prefix))
+
+        # min pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MIN_POOL_SIZE
+        min_pool_size = os.getenv("{}_MIN_POOL_SIZE".format(prefix))
+
+        # max pool size environment variable name format: [NAME]_[DATABASE_TYPE]_MAX_POOL_SIZE
+        max_pool_size = os.getenv("{}_MAX_POOL_SIZE".format(prefix))
+
+        # jta environment variable name format: [NAME]_[DATABASE_TYPE]_JTA
+        jta = os.getenv("{}_JTA".format(prefix), "true")
+
+        # $NON_XA_DATASOURCE: [NAME]_[DATABASE_TYPE]_NONXA (DB_NONXA)
+        NON_XA_DATASOURCE = os.getenv("{}_NONXA".format(prefix), "false")
+
+        if db == "MYSQL":
+            driver="mysql"
+            checker="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"
+            sorter="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"
+
+        elif db == "POSTGRESQL":
+            driver="postgresql"
+            checker="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker"
+            sorter="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter"
+
+        elif db == "MONGODB":
+            continue
+
+        else:
+            self.logger.error( "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!")
+            self.logger.error( "You provided the following database mapping (via DB_SERVICE_PREFIX_MAPPING): {}.".format(db_backend))
+            self.logger.error( "The mapping contains the following database type: {}, which is not supported. Currently, only MYSQL and POSTGRESQL are supported.".format(db))
+            self.logger.error("")
+            self.logger.error( "Please make sure you provide the correct database type in the mapping.")
+            self.logger.error("")
+            self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
+            continue
+
+        self.generate_datasource(
+            datasources=datasources,
+            pool_name="{}-{}".format(service.lower(), prefix),
+            jndi_name=jndi_name,
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+            checker=checker,
+            sorter=sorter,
+            driver=driver,
+            service_name=service_name,
+            # orig_service_name elided
+            datasource_jta=jta,
+            NON_XA_DATASOURCE=NON_XA_DATASOURCE,
+            tx_isolation=tx_isolation,
+            min_pool_size=min_pool_size,
+            max_pool_size=max_pool_size
+        )
 
         # stuff from tx-datasource.sh
     # XXX: this is VERY similar to stuff in inject_datasources, lots of opportunity for common
