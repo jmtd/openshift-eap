@@ -266,7 +266,7 @@ class Run(Module):
             self.logger.error( "{}_DATABASE: {}".format(prefix,database))
             self.logger.error("")
             self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
-            continue
+            return
 
         # Transaction isolation level environment variable name format: [NAME]_[DATABASE_TYPE]_TX_ISOLATION
         tx_isolation = os.getenv("{}_TX_ISOLATION".format(prefix))
@@ -294,7 +294,7 @@ class Run(Module):
             sorter="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter"
 
         elif db == "MONGODB":
-            continue
+            return
 
         else:
             self.logger.error( "There is a problem with the DB_SERVICE_PREFIX_MAPPING environment variable!")
@@ -304,7 +304,7 @@ class Run(Module):
             self.logger.error( "Please make sure you provide the correct database type in the mapping.")
             self.logger.error("")
             self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
-            continue
+            return
 
         self.generate_datasource(
             datasources=datasources,
