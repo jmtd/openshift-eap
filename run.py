@@ -283,6 +283,8 @@ class Run(Module):
         # $NON_XA_DATASOURCE: [NAME]_[DATABASE_TYPE]_NONXA (DB_NONXA)
         NON_XA_DATASOURCE = os.getenv("{}_NONXA".format(prefix), "false")
 
+        driver=""
+
         if db == "MYSQL":
             driver="mysql"
             checker="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"
@@ -304,6 +306,15 @@ class Run(Module):
             self.logger.error( "Please make sure you provide the correct database type in the mapping.")
             self.logger.error("")
             self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(), prefix))
+            return
+
+        if not jta:
+            # XXX: this is a transcription of the shell logic but this is not actually possible
+            self.logger.error("Warning - JTA flag not set, defaulting to true for datasource  {}".format(service_name))
+            jta=false
+
+        if not driver:
+            self.logger.error("Warning - DRIVER not set for datasource {}. Datasource will not be configured.".format(service_name))
             return
 
         self.generate_datasource(
