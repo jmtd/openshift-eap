@@ -226,6 +226,8 @@ class Run(Module):
                 ds.appendChild(source)
 
     def inject_datasource(self, datasources, prefix, service, db):
+        self.logger.debug("inject_datasource!")
+
         host = os.getenv("{}_SERVICE_HOST".format(service))
         port = os.getenv("{}_SERVICE_PORT".format(service))
 
