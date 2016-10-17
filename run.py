@@ -241,7 +241,7 @@ class Run(Module):
             self.logger.error( "Please make sure you provided correct service name and prefix in the mapping. Additionally please check that you do not set portalIP to None in the {} service. Headless services are not supported at this time.".format(service_name))
             self.logger.error("")
             self.logger.error( "WARNING! The {} datasource for {} service WILL NOT be configured.".format(db.lower(),prefix))
-            continue
+            return
 
         # Custom JNDI environment variable name format: [NAME]_[DATABASE_TYPE]_JNDI
         jndi_name = os.getenv("{}_JNDI".format(prefix), "java:jboss/datasources/{}".format(service.lower()))
