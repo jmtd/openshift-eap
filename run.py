@@ -392,27 +392,17 @@ class Run(Module):
             ra.ra_class = os.getenv("{}_CONNECTION_CLASS".format(ra_prefix),"")
             if not ra.ra_class:
                 self.logger.error("Warning - {}_CONNECTION_CLASS is missing from resource adapter configration. Resource adapter will not be configured".format(ra_prefix))
-              continue
+                continue
 
-            ra.jndi=os.getenv("{}_CONNECTION_JNDI".format(ra_prefix),"")
+            ra.jndi = os.getenv("{}_CONNECTION_JNDI".format(ra_prefix),"")
             if not ra.jndi:
               self.logger.error("Warning - {}_CONNECTION_JNDI is missing from resource adapter configration. Resource adapter will not be configured".format(ra_prefix))
               continue
-
-            #resource_adapter="<resource-adapter id=\"$ra_id\"><module slot=\"$ra_module_slot\" id=\"$ra_module_id\"></module><connection-definitions><connection-definition class-name=\"${ra_class}\" jndi-name=\"${ra_jndi}\" enabled=\"true\" use-java-context=\"true\">"
 
             # all environment variables beginning {ra_prefix}_PROPERTY_*
             prop_prefix="{}_PROPERTY_".format(ra_prefix)
             ra.properties = { k[len(prop_prefix):]: v for (k, v) in os.environ.items() if k.startswith(prop_prefix) }
 
-            #for prop_name,prop_val in ra_props.items():
-                #resource_adapter="${resource_adapter}<config-property name=\"${prop_name}\">${prop_val}</config-property>"
-
-            #resource_adapter="${resource_adapter}</connection-definition></connection-definitions></resource-adapter>"
-
-            #resource_adapters="${resource_adapters}${resource_adapter}"
-
-        #sed -i "s|<!-- ##EXTENSION_RESOURCE_ADAPTERS## -->|${resource_adapters}|" $CONFIG_FILE
         t = Template(self._get_resource("templates/resource_adapters.xml.jinja"))
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:resource-adapters:4.0")
         if ss:
@@ -420,7 +410,9 @@ class Run(Module):
             db = ss.getElementsByTagName("resource-adapters")[0]
             self._append_xml_from_string(db, t.render(ras=ras))
 
-        # stuff from tx-datasource.sh
+
+        ##### stuff from tx-datasource.sh #####
+
     # XXX: this is VERY similar to stuff in inject_datasources, lots of opportunity for common
     def inject_tx_datasource(self):
         tx_backend = os.getenv("TX_DATABASE_PREFIX_MAPPING", "")
