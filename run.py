@@ -376,8 +376,8 @@ class Run(Module):
             ra = ResourceAdapter()
             ra.ra_id = os.getenv("{}_ID".format(ra_prefix), "")
             if not ra.ra_id:
-                self.logger.error("Warning - {ra_prefix}_ID is missing from resource adapter configration, defaulting to {ra_prefix}".format(ra_prefix))
-                ra.ra_id=ra_prefix
+                self.logger.error("Warning - {ra_prefix}_ID is missing from resource adapter configration, defaulting to {ra_prefix}".format(ra_prefix=ra_prefix))
+                ra.ra_id = ra_prefix
 
             ra.module_slot = os.getenv("{}_MODULE_SLOT".format(ra_prefix), "")
             if not ra.module_slot:
