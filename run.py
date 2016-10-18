@@ -408,7 +408,9 @@ class Run(Module):
         if ss:
             # XXX handle !0 length result
             db = ss.getElementsByTagName("resource-adapters")[0]
-            self._append_xml_from_string(db, t.render(ras=ras))
+            blergh = t.render(ras=ras)
+            self.logger.debug(blergh)
+            self._append_xml_from_string(db, blergh)
 
 
         ##### stuff from tx-datasource.sh #####
