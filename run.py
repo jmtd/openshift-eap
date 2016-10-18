@@ -402,6 +402,7 @@ class Run(Module):
             # all environment variables beginning {ra_prefix}_PROPERTY_*
             prop_prefix="{}_PROPERTY_".format(ra_prefix)
             ra.properties = { k[len(prop_prefix):]: v for (k, v) in os.environ.items() if k.startswith(prop_prefix) }
+            ras.append(ra)
 
         t = Template(self._get_resource("templates/resource_adapters.xml.jinja"))
         ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:resource-adapters:4.0")
