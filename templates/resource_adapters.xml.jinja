@@ -1,0 +1,12 @@
+{% for ra in ras %}
+<resource-adapter id="{{ ra.ra_id }}">
+  <module slot="{{ ra.module_slot }}" id="{{ ra.module_id }}"></module>
+  <connection-definitions>
+    <connection-definition class-name="{{ ra.ra_class }}" jndi-name="{{ ra.jndi }}" enabled="true" use-java-context="true">
+    {% for prop_name,prop_val in ra.properties.items() %}
+      <config-property name="{{ prop_name }}">{{ prop_val }}</config-property>
+    {% endfor %}
+    </connection-definition>
+  </connection-definitions>
+</resource-adapter>
+{% endfor %}

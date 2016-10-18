@@ -220,6 +220,29 @@ class Run(Module):
             db = self.config.getElementsByTagName("default-bindings")[0]
             db.setAttribute("datasource", defaultDatasourceJndi)
 
+        db="EXTERNAL"
+        if os.getenv("EXTENSION_DATASOURCES", ""):
+            for datasource_prefix in os.getenv("EXTENSION_DATASOURCES").split(","):
+                # XXX: need to figure out what to pass after the prefix vars
+                self.inject_datasource(datasources, datasource_prefix, datasource_prefix)
+        if os.getenv("EXTENSION_RESOURCE_ADAPTERS", ""):
+            self.inject_resource_adapters()
+        if os.getenv("EXTENSIONS_PROPERTIES_FILES", ""):
+            for prop_file in os.getenv("EXTENSIONS_PROPERTIES_FILES").split(","):
+                EXTENSION_DATASOURCES=""
+                EXTENSION_RESOURCE_ADAPTERS=""
+                # . $prop_file
+                # XXX: how on earth to manage this?
+
+        # add datasources from properties
+        if os.getenv("EXTENSION_DATASOURCES", ""):
+            for datasource_prefix in os.getenv("EXTENSION_DATASOURCES").split(","):
+                self.inject_datasource(datasources, datasource_prefix, datasource_prefix)
+
+        # Add resource adapters from properties
+        if os.getenv("EXTENSION_RESOURCE_ADAPTERS", ""):
+            self.inject_resource_adapters()
+
         ds = self.config.getElementsByTagName("datasources")[0]
         for source in datasources:
             if source:
@@ -339,6 +362,63 @@ class Run(Module):
             min_pool_size=min_pool_size,
             max_pool_size=max_pool_size
         )
+
+
+    def inject_resource_adapters(self):
+        resource_adapters=""
+        hostname=os.uname()[1]
+
+        class ResourceAdapter:
+            pass # behaves like an OpenStruct
+        ras = []
+
+        for ra_prefix in os.getenv("EXTENSION_RESOURCE_ADAPTERS").split(","):
+            ra = ResourceAdapter()
+            ra.ra_id = os.getenv("{}_ID".format(ra_prefix), "")
+            if not ra.ra_id:
+                self.logger.error("Warning - {ra_prefix}_ID is missing from resource adapter configration, defaulting to {ra_prefix}".format(ra_prefix))
+                ra.ra_id=ra_prefix
+
+            ra.module_slot = os.getenv("{}_MODULE_SLOT".format(ra_prefix), "")
+            if not ra.module_slot:
+                self.logger.error("Warning - {}_MODULE_SLOT is missing from resource adapter configration, defaulting to main".format(ra_prefix))
+                ra.module_slot="main"
+
+            ra.module_id = os.getenv("{}_MODULE_ID".format(ra_prefix), "")
+            if not ra.module_id:
+                self.logger.error("Warning - {}_MODULE_ID is missing from resource adapter configration. Resource adapter will not be configured".format(ra_prefix))
+                continue
+
+            ra.ra_class = os.getenv("{}_CONNECTION_CLASS".format(ra_prefix),"")
+            if not ra.ra_class:
+                self.logger.error("Warning - {}_CONNECTION_CLASS is missing from resource adapter configration. Resource adapter will not be configured".format(ra_prefix))
+              continue
+
+            ra.jndi=os.getenv("{}_CONNECTION_JNDI".format(ra_prefix),"")
+            if not ra.jndi:
+              self.logger.error("Warning - {}_CONNECTION_JNDI is missing from resource adapter configration. Resource adapter will not be configured".format(ra_prefix))
+              continue
+
+            #resource_adapter="<resource-adapter id=\"$ra_id\"><module slot=\"$ra_module_slot\" id=\"$ra_module_id\"></module><connection-definitions><connection-definition class-name=\"${ra_class}\" jndi-name=\"${ra_jndi}\" enabled=\"true\" use-java-context=\"true\">"
+
+            # all environment variables beginning {ra_prefix}_PROPERTY_*
+            prop_prefix="{}_PROPERTY_".format(ra_prefix)
+            ra.properties = { k[len(prop_prefix):]: v for (k, v) in os.environ.items() if k.startswith(prop_prefix) }
+
+            #for prop_name,prop_val in ra_props.items():
+                #resource_adapter="${resource_adapter}<config-property name=\"${prop_name}\">${prop_val}</config-property>"
+
+            #resource_adapter="${resource_adapter}</connection-definition></connection-definitions></resource-adapter>"
+
+            #resource_adapters="${resource_adapters}${resource_adapter}"
+
+        #sed -i "s|<!-- ##EXTENSION_RESOURCE_ADAPTERS## -->|${resource_adapters}|" $CONFIG_FILE
+        t = Template(self._get_resource("templates/resource_adapters.xml.jinja"))
+        ss = self._get_tag_by_attr("subsystem", "xmlns", "urn:jboss:domain:resource-adapters:4.0")
+        if ss:
+            # XXX handle !0 length result
+            db = ss.getElementsByTagName("resource-adapters")[0]
+            self._append_xml_from_string(db, t.render(ras=ras))
 
         # stuff from tx-datasource.sh
     # XXX: this is VERY similar to stuff in inject_datasources, lots of opportunity for common
